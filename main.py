@@ -157,6 +157,6 @@ if __name__ == "__main__":
         on_startup=on_startup,
         on_shutdown=on_shutdown,
         skip_updates=True,
-        host="127.0.0.1",
-        port=9000,
+        host=settings.host,
+        port=settings.port,
     )
