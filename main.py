@@ -1,4 +1,3 @@
-import json
 import logging
 import secrets
 from datetime import datetime
@@ -8,7 +7,6 @@ import orjson as orjson
 import pymongo
 import requests
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.utils import parts
 from aiogram.utils.executor import start_webhook
 from pydantic import BaseSettings
 import bitmath

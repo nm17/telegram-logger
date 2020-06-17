@@ -1,38 +1,38 @@
 {
-   "description": "Telegram group management bot.",
-   "env": {
-      "API_KEY": {
-         "description": "Telegram bot api key",
-         "required": true
-      },
-      "MONGODB_HOST": {
-         "description": "MongoDB address",
-         "required": true
-      },
-      "MONGODB_USERNAME": {
-         "description": "MongoDB username",
-         "required": false
-      },
-      "MONGODB_PASSWORD": {
-         "description": "MongoDB password",
-         "required": false
-      },
-      "CHAT": {
-         "description": "Telegram chat tag without @ to monitor (don't forget to invite the bot)",
-         "required": true
-      },
-      "OWNER_ID": {
-         "description": "Telegram user id of the bot owner",
-         "required": true
-      }
-   },
-   "keywords": [
-      "telegram",
-      "group",
-      "logging",
-      "logs",
-      "bot"
-   ],
-   "name": "Telegram logger",
-   "repository": "https://github.com/nm17/telegram-logger/"
+  "description": "Telegram group management bot.",
+  "env": {
+    "API_KEY": {
+      "description": "Telegram bot api key",
+      "required": true
+    },
+    "MONGODB_HOST": {
+      "description": "MongoDB address",
+      "required": true
+    },
+    "MONGODB_USERNAME": {
+      "description": "MongoDB username",
+      "required": false
+    },
+    "MONGODB_PASSWORD": {
+      "description": "MongoDB password",
+      "required": false
+    },
+    "CHAT": {
+      "description": "Telegram chat tag without @ to monitor (don't forget to invite the bot)",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "Telegram user id of the bot owner",
+      "required": true
+    }
+  },
+  "keywords": [
+    "telegram",
+    "group",
+    "logging",
+    "logs",
+    "bot"
+  ],
+  "name": "Telegram logger",
+  "repository": "https://github.com/nm17/telegram-logger/"
 }
