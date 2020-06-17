@@ -5,3 +5,4 @@ aiohttp_socks
 orjson
 requests
 bitmath
+dnspython
