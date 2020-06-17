@@ -22,11 +22,12 @@ class Settings(BaseSettings):
     port: int
     webhook_path: str = "/" + secrets.token_urlsafe(32)
 
-    mongodb_url: str = "mongodb://mongoadmin:mongoadmin@localhost"
+    mongodb_host: str = "localhost"
+    mongodb_username: Optional[str] = None
+    mongodb_password: Optional[str] = None
 
     api_key: str
     proxy: Optional[str] = None
-    pastebin_api_key: str
     chat: str
     owner_id: int
 
@@ -37,7 +38,9 @@ class Settings(BaseSettings):
 settings = Settings()
 
 client = MongoClient(
-    host=settings.mongodb_url, username="mongoadmin", password="mongoadmin"
+    host=settings.mongodb_host,
+    username=settings.mongodb_username,
+    password=settings.mongodb_username,
 )
 
 db = client.get_database("logger").get_collection("messages")
@@ -75,13 +78,15 @@ def decode(message, append: str = ""):
         + append
     )
 
+
 def post_to_hastebin(text: str):
     return (
-            "https://hastebin.com/"
-            + requests.post("https://hastebin.com/documents", text.encode("utf-8")).json()[
-                "key"
-            ]
+        "https://hastebin.com/"
+        + requests.post("https://hastebin.com/documents", text.encode("utf-8")).json()[
+            "key"
+        ]
     )
+
 
 @dp.message_handler(commands=["rec_status"])
 async def status(message: types.Message):
@@ -135,7 +140,7 @@ async def edit_msg(message: types.Message):
 
 
 async def on_startup(dp):
-    await bot.set_webhook(settings.webhook_url)
+    await bot.set_webhook(settings.webhook_url + settings.webhook_path)
 
 
 async def on_shutdown(dp):
