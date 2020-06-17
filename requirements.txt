@@ -4,3 +4,4 @@ aiogram
 aiohttp_socks
 orjson
 requests
+bitmath
