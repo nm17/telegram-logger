@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     mongodb_username: Optional[str] = None
     mongodb_password: Optional[str] = None
 
+    create_indexes: int = 1
+
     api_key: str
     proxy: Optional[str] = None
     chat: str
@@ -42,9 +44,10 @@ client = MongoClient(
 )
 
 db = client.get_database("logger").get_collection("messages")
-db.create_index([("from.username", pymongo.ASCENDING)])
-db.create_index([("from.id", pymongo.ASCENDING)])
-db.create_index([("from.first_name", pymongo.ASCENDING)])
+if settings.create_indexes == 1:
+    db.create_index([("from.username", pymongo.ASCENDING)])
+    db.create_index([("from.id", pymongo.ASCENDING)])
+    db.create_index([("from.first_name", pymongo.ASCENDING)])
 
 API_TOKEN = settings.api_key
 
