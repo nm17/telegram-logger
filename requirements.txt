@@ -1,0 +1,4 @@
+pydantic[dotenv]
+pymongo
+aiogram
+aiohttp_socks
