@@ -3,3 +3,4 @@ pymongo
 aiogram
 aiohttp_socks
 orjson
+requests
