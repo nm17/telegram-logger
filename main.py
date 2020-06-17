@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import secrets
 from datetime import datetime
 from typing import Optional
 
+import aiostream as aiostream
 import orjson as orjson
 import pymongo
 import requests
@@ -11,7 +13,7 @@ from aiogram.utils.executor import start_webhook
 from pydantic import BaseSettings
 import bitmath
 
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCursor
 
 
 class Settings(BaseSettings):
@@ -20,9 +22,10 @@ class Settings(BaseSettings):
     port: int
     webhook_path: str = "/" + secrets.token_urlsafe(32)
 
-    mongodb_host: str = "localhost"
+    mongodb_uri: str = "localhost"
     mongodb_username: Optional[str] = None
     mongodb_password: Optional[str] = None
+    mongodb_database: str
 
     create_indexes: int = 1
 
@@ -37,17 +40,20 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-client = MongoClient(
-    host=settings.mongodb_host,
-    username=settings.mongodb_username,
-    password=settings.mongodb_username,
-)
+loop = asyncio.get_event_loop()
 
-db = client.get_database("logger").get_collection("messages")
-if settings.create_indexes == 1:
-    db.create_index([("from.username", pymongo.ASCENDING)])
-    db.create_index([("from.id", pymongo.ASCENDING)])
-    db.create_index([("from.first_name", pymongo.ASCENDING)])
+client = AsyncIOMotorClient(settings.mongodb_uri, io_loop=loop)
+
+db = client.get_database(settings.mongodb_database).get_collection("messages")
+
+
+async def create():
+    if settings.create_indexes == 1:
+        await db.create_index([("from.username", pymongo.ASCENDING)])
+        await db.create_index([("from.id", pymongo.ASCENDING)])
+        await db.create_index([("from.first_name", pymongo.ASCENDING)])
+
+loop.run_until_complete(create())
 
 API_TOKEN = settings.api_key
 
@@ -93,8 +99,8 @@ def post_to_hastebin(text: str):
 async def status(message: types.Message):
     if message.from_user.id != int(settings.owner_id):
         return
-    text = f"""Примерное количество сообщений: {db.estimated_document_count()}
-Примерный размер базы: {(bitmath.Byte(451) * db.estimated_document_count()).best_prefix()}"""
+    text = f"""Примерное количество сообщений: {await db.estimated_document_count()}
+Примерный размер базы: {(bitmath.Byte(451) * (await db.estimated_document_count())).best_prefix()}"""
     await message.answer(text)
 
 
@@ -102,27 +108,30 @@ async def status(message: types.Message):
 async def logs(message: types.Message):
     if message.from_user.id not in [
         a.user.id
-        for a in [*(await message.chat.get_administrators()), settings.owner_id]
+        for a in (await message.chat.get_administrators())
     ]:
         return
     try:
         user = message.text.split(" ")
         if len(user) == 1:
             raise IndexError
-        key = "from.id" if user.startswith("@") else "from.username"
+        key = "from.id" if not user[1].startswith("@") else "from.username"
+        user = user[1]
     except IndexError:
         if message.reply_to_message is None:
             return
         user = str(message.reply_to_message.from_user.id)
         key = "from.id"
+    user = user.lstrip("@")
     user = int(user) if user.isdigit() else user
     data = f"Логи для {user}\n\n"
-    for item in db.find({key: user}):
-        reply = item.get("reply_to_message", {})
-        data += (
-            f"[{item['date']}, {item['message_id']}] "
-            f"{reply.get('text', '')} -- {item['text']}\n"
-        )
+    async with aiostream.streamcontext(db.find({key: user})) as st:
+        async for item in st:
+            reply = item.get("reply_to_message", {})
+            data += (
+                f"[{item['date']}, {item['message_id']}] "
+                f"{reply.get('text', '')} -- {item['text']}\n"
+            )
 
     url = post_to_hastebin(data)
     await message.reply(url, disable_web_page_preview=True)
@@ -131,13 +140,13 @@ async def logs(message: types.Message):
 @dp.message_handler()
 async def msg(message: types.Message):
     if message.chat.username == settings.chat:
-        db.insert_one(convert(message))
+        await db.insert_one(convert(message))
 
 
 @dp.edited_message_handler()
 async def edit_msg(message: types.Message):
     if message.chat.username == settings.chat:
-        db.insert_one(convert(message))
+        await db.insert_one(convert(message))
 
 
 async def on_startup(dp):
@@ -159,4 +168,5 @@ if __name__ == "__main__":
         skip_updates=True,
         host=settings.host,
         port=settings.port,
+        loop=loop
     )

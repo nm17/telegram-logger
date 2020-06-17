@@ -5,7 +5,7 @@
       "description": "Telegram bot api key",
       "required": true
     },
-    "MONGODB_HOST": {
+    "MONGODB": {
       "description": "MongoDB address",
       "required": true
     },
