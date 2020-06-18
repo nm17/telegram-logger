@@ -82,7 +82,7 @@ async def logs(message: types.Message):
     /rec_logs <username> [<from_date>-<to_date>]
     """
     if message.from_user.id not in [
-        a.user.id for a in (await message.chat.get_administrators())
+        a.user.id for a in await (await bot.get_chat(settings.chat)).get_administrators()
     ]:
         return
 
