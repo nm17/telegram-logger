@@ -5,15 +5,15 @@ from datetime import datetime
 from typing import Optional
 
 import aiostream as aiostream
-import orjson as orjson
-import pymongo
-import requests
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.utils.executor import start_webhook
-from pydantic import BaseSettings
 import bitmath
+import dateparser as dateparser
+import motor
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils.executor import start_webhook
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseSettings
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCursor
+from utils import post_to_hastebin, convert
 
 
 class Settings(BaseSettings):
@@ -49,9 +49,10 @@ db = client.get_database(settings.mongodb_database).get_collection("messages")
 
 async def create():
     if settings.create_indexes == 1:
-        await db.create_index([("from.username", pymongo.ASCENDING)])
-        await db.create_index([("from.id", pymongo.ASCENDING)])
-        await db.create_index([("from.first_name", pymongo.ASCENDING)])
+        await db.create_index([("from.username", 1)])
+        await db.create_index([("from.id", 1)])
+        await db.create_index([("from.first_name", 1)])
+
 
 loop.run_until_complete(create())
 
@@ -66,35 +67,6 @@ bot = Bot(token=API_TOKEN, proxy=settings.proxy)
 dp = Dispatcher(bot)
 
 
-def convert(message: types.Message):
-    data = orjson.loads(orjson.dumps(message.to_python()))
-    data = {
-        key: datetime.fromtimestamp(value).isoformat() if key == "date" else value
-        for key, value in data.items()
-    }
-    if data.get("edit_date") is not None:
-        data["edit_date"] = message.edit_date
-    data["date"] = message.date
-    return data
-
-
-def decode(message, append: str = ""):
-    return (
-        "@"
-        + str(message["from"].get("username", None) or message["from"]["id"])
-        + append
-    )
-
-
-def post_to_hastebin(text: str):
-    return (
-        "https://hastebin.com/"
-        + requests.post("https://hastebin.com/documents", text.encode("utf-8")).json()[
-            "key"
-        ]
-    )
-
-
 @dp.message_handler(commands=["rec_status"])
 async def status(message: types.Message):
     if message.from_user.id != int(settings.owner_id):
@@ -106,17 +78,37 @@ async def status(message: types.Message):
 
 @dp.message_handler(commands=["rec_logs"])
 async def logs(message: types.Message):
+    """
+    /rec_logs <username> [<from_date>-<to_date>]
+    """
     if message.from_user.id not in [
-        a.user.id
-        for a in (await message.chat.get_administrators())
+        a.user.id for a in (await message.chat.get_administrators())
     ]:
         return
+
+    from_date, to_date = None, datetime.now()
+
+    try:
+        from_date, to_date = map(dateparser.parse, message.text.split(" ", maxsplit=2)[2].split("-"))
+    except IndexError:
+        pass
+
+    date_filter = {}
+    if from_date is not None:
+        date_filter["$gte"] = from_date
+    if to_date is not None:
+        date_filter["$lte"] = to_date
+
+    print(date_filter)
+
     try:
         user = message.text.split(" ")
-        if len(user) == 1:
-            raise IndexError
+        if len(user) <= 1:
+            raise IndexError()
         key = "from.id" if not user[1].startswith("@") else "from.username"
         user = user[1]
+        if user == "-":
+            raise IndexError()
     except IndexError:
         if message.reply_to_message is None:
             return
@@ -125,7 +117,7 @@ async def logs(message: types.Message):
     user = user.lstrip("@")
     user = int(user) if user.isdigit() else user
     data = f"Логи для {user}\n\n"
-    async with aiostream.streamcontext(db.find({key: user})) as st:
+    async with aiostream.streamcontext(db.find({key: user, "date": date_filter})) as st:
         async for item in st:
             reply = item.get("reply_to_message", {})
             data += (
@@ -168,5 +160,5 @@ if __name__ == "__main__":
         skip_updates=True,
         host=settings.host,
         port=settings.port,
-        loop=loop
+        loop=loop,
     )

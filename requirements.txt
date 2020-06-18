@@ -7,3 +7,4 @@ requests
 bitmath
 dnspython
 aiostream
+dateparser
